@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useSession, signOut } from "next-auth/react";
 import { useTheme } from "@/context/ThemeContext";
 import { useWorkRules, useSaveWorkRules, useFlexBalance, useSaveFlexBalance } from "@/hooks/useConfig";
@@ -13,9 +13,9 @@ function generateId() {
 export default function InnstillingerPage() {
   const { data: session } = useSession();
   const { theme, toggle } = useTheme();
-  const { rules } = useWorkRules();
+  const { rules, isLoading: rulesLoading } = useWorkRules();
   const saveRules = useSaveWorkRules();
-  const { config: flexConfig } = useFlexBalance();
+  const { config: flexConfig, isLoading: flexLoading } = useFlexBalance();
   const saveFlexBalance = useSaveFlexBalance();
 
   const [defaultHours, setDefaultHours] = useState(rules.defaultHoursPerDay);
@@ -23,6 +23,22 @@ export default function InnstillingerPage() {
   const [startBalance, setStartBalance] = useState(flexConfig.startBalance);
   const [startDate, setStartDate] = useState(flexConfig.startDate);
   const [saved, setSaved] = useState(false);
+  const [saveError, setSaveError] = useState<string | null>(null);
+
+  // Sync state when async data loads
+  useEffect(() => {
+    if (!rulesLoading) {
+      setDefaultHours(rules.defaultHoursPerDay);
+      setPeriods(rules.periods);
+    }
+  }, [rules, rulesLoading]);
+
+  useEffect(() => {
+    if (!flexLoading) {
+      setStartBalance(flexConfig.startBalance);
+      setStartDate(flexConfig.startDate);
+    }
+  }, [flexConfig, flexLoading]);
 
   function addPeriod() {
     setPeriods([...periods, { id: generateId(), from: "05-15", to: "08-31", hoursPerDay: 7, label: "" }]);
@@ -37,12 +53,17 @@ export default function InnstillingerPage() {
   }
 
   async function handleSave() {
-    await Promise.all([
-      saveRules.mutateAsync({ defaultHoursPerDay: defaultHours, periods }),
-      saveFlexBalance.mutateAsync({ startBalance, startDate }),
-    ]);
-    setSaved(true);
-    setTimeout(() => setSaved(false), 2000);
+    setSaveError(null);
+    try {
+      await Promise.all([
+        saveRules.mutateAsync({ defaultHoursPerDay: defaultHours, periods }),
+        saveFlexBalance.mutateAsync({ startBalance, startDate }),
+      ]);
+      setSaved(true);
+      setTimeout(() => setSaved(false), 2000);
+    } catch {
+      setSaveError("Kunne ikke lagre innstillingene. Prøv igjen.");
+    }
   }
 
   return (
@@ -191,6 +212,11 @@ export default function InnstillingerPage() {
       </div>
 
       {/* Save button */}
+      {saveError && (
+        <div className="text-sm text-center p-3 rounded-xl" style={{ color: "var(--danger)", background: "var(--danger-soft, rgba(255,59,48,0.1))" }}>
+          {saveError}
+        </div>
+      )}
       <button
         onClick={handleSave}
         disabled={saveRules.isPending || saveFlexBalance.isPending}

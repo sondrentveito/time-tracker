@@ -8,7 +8,7 @@ import FlexBalanceCard from "@/components/dashboard/FlexBalance";
 import MonthSummary from "@/components/dashboard/MonthSummary";
 
 export default function DashboardPage() {
-  const { entries, isLoading } = useEntries();
+  const { entries, isLoading, error } = useEntries();
   const { rules } = useWorkRules();
   const { config: flexConfig } = useFlexBalance();
 
@@ -16,6 +16,20 @@ export default function DashboardPage() {
     return (
       <div className="flex items-center justify-center h-full">
         <div className="text-sm" style={{ color: "var(--fg-muted)" }}>Laster...</div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="flex items-center justify-center h-full">
+        <div className="glass-card p-6 text-center max-w-sm">
+          <p className="text-sm font-medium" style={{ color: "var(--danger)" }}>Kunne ikke laste data</p>
+          <p className="text-xs mt-2" style={{ color: "var(--fg-muted)" }}>{error.message}</p>
+          <button onClick={() => window.location.reload()} className="btn-secondary text-sm mt-4">
+            Prøv igjen
+          </button>
+        </div>
       </div>
     );
   }

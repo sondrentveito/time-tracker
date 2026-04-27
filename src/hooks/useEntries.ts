@@ -27,6 +27,9 @@ export function useCreateEntry() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["entries"] });
     },
+    onError: (error: Error) => {
+      console.error("Kunne ikke opprette registrering:", error.message);
+    },
   });
 }
 
@@ -38,6 +41,9 @@ export function useUpdateEntry() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["entries"] });
     },
+    onError: (error: Error) => {
+      console.error("Kunne ikke oppdatere registrering:", error.message);
+    },
   });
 }
 
@@ -47,6 +53,9 @@ export function useDeleteEntry() {
     mutationFn: (timestamp: string) => deleteEntry(timestamp),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["entries"] });
+    },
+    onError: (error: Error) => {
+      console.error("Kunne ikke slette registrering:", error.message);
     },
   });
 }

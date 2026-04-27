@@ -2,6 +2,12 @@ import { auth } from "@/lib/auth";
 import { NextResponse } from "next/server";
 import { fetchSheetRows, appendSheetRow, updateSheetRow, deleteSheetRow } from "@/lib/googleSheets";
 import { parseSheetRow } from "@/lib/api";
+import type { EntryType, LocationType } from "@/lib/types";
+
+const VALID_TYPES: EntryType[] = ["work", "time-off", "vacation", "sick", "leave"];
+const VALID_LOCATIONS: LocationType[] = ["office", "home", "other"];
+const DATE_REGEX = /^\d{2}\.\d{2}\.\d{4}$/;
+const TIME_REGEX = /^\d{2}:\d{2}$/;
 
 export const GET = auth(async (req) => {
   if (!req.auth) {
@@ -29,6 +35,26 @@ export const POST = auth(async (req) => {
 
     if (!date || !start || !end || duration === undefined || !type) {
       return NextResponse.json({ error: "Missing required fields" }, { status: 400 });
+    }
+
+    if (!DATE_REGEX.test(date)) {
+      return NextResponse.json({ error: "Invalid date format. Use dd.mm.yyyy" }, { status: 400 });
+    }
+
+    if (!TIME_REGEX.test(start) || !TIME_REGEX.test(end)) {
+      return NextResponse.json({ error: "Invalid time format. Use HH:mm" }, { status: 400 });
+    }
+
+    if (typeof duration !== "number" || duration <= 0 || duration > 24) {
+      return NextResponse.json({ error: "Invalid duration" }, { status: 400 });
+    }
+
+    if (!VALID_TYPES.includes(type)) {
+      return NextResponse.json({ error: `Invalid type. Must be one of: ${VALID_TYPES.join(", ")}` }, { status: 400 });
+    }
+
+    if (location && !VALID_LOCATIONS.includes(location)) {
+      return NextResponse.json({ error: `Invalid location. Must be one of: ${VALID_LOCATIONS.join(", ")}` }, { status: 400 });
     }
 
     const timestamp = await appendSheetRow({
@@ -60,6 +86,26 @@ export const PUT = auth(async (req) => {
 
     if (!timestamp) {
       return NextResponse.json({ error: "Missing timestamp" }, { status: 400 });
+    }
+
+    // Validate update fields if provided
+    if (updates.date && !DATE_REGEX.test(updates.date)) {
+      return NextResponse.json({ error: "Invalid date format. Use dd.mm.yyyy" }, { status: 400 });
+    }
+    if (updates.start && !TIME_REGEX.test(updates.start)) {
+      return NextResponse.json({ error: "Invalid start time format. Use HH:mm" }, { status: 400 });
+    }
+    if (updates.end && !TIME_REGEX.test(updates.end)) {
+      return NextResponse.json({ error: "Invalid end time format. Use HH:mm" }, { status: 400 });
+    }
+    if (updates.type && !VALID_TYPES.includes(updates.type)) {
+      return NextResponse.json({ error: "Invalid type" }, { status: 400 });
+    }
+    if (updates.location && !VALID_LOCATIONS.includes(updates.location)) {
+      return NextResponse.json({ error: "Invalid location" }, { status: 400 });
+    }
+    if (updates.duration !== undefined && (typeof updates.duration !== "number" || updates.duration <= 0)) {
+      return NextResponse.json({ error: "Invalid duration" }, { status: 400 });
     }
 
     const success = await updateSheetRow(timestamp, updates);

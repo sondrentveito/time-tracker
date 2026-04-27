@@ -29,7 +29,7 @@ export default function FlexBalance({ entries, rules, flexConfig }: FlexBalanceP
           {isPositive
             ? "Kan avspaseres"
             : isNegative
-              ? "Tid til gode"
+              ? "Mangler tid"
               : "I balanse"}
         </p>
       </div>

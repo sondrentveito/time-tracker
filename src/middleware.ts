@@ -4,18 +4,29 @@ import { NextResponse } from "next/server";
 const securityHeaders = {
   "X-Content-Type-Options": "nosniff",
   "X-Frame-Options": "DENY",
-  "X-XSS-Protection": "1; mode=block",
+  "X-XSS-Protection": "0",
   "Referrer-Policy": "strict-origin-when-cross-origin",
   "Permissions-Policy": "camera=(), microphone=(), geolocation=(self)",
+  "Content-Security-Policy": "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; font-src 'self'; connect-src 'self' https://accounts.google.com https://sheets.googleapis.com; frame-src https://accounts.google.com;",
 };
 
 // Simple in-memory rate limiter for API routes
 const rateMap = new Map<string, { count: number; resetAt: number }>();
 const RATE_LIMIT = 60;
 const RATE_WINDOW = 60_000;
+const RATE_MAP_MAX_SIZE = 10_000;
+
+function cleanupRateMap() {
+  if (rateMap.size <= RATE_MAP_MAX_SIZE) return;
+  const now = Date.now();
+  for (const [key, entry] of rateMap) {
+    if (now > entry.resetAt) rateMap.delete(key);
+  }
+}
 
 function isRateLimited(ip: string): boolean {
   const now = Date.now();
+  cleanupRateMap();
   const entry = rateMap.get(ip);
   if (!entry || now > entry.resetAt) {
     rateMap.set(ip, { count: 1, resetAt: now + RATE_WINDOW });
@@ -23,6 +34,12 @@ function isRateLimited(ip: string): boolean {
   }
   entry.count++;
   return entry.count > RATE_LIMIT;
+}
+
+function verifyApiKey(req: { headers: Headers }): boolean {
+  const apiKey = req.headers.get("x-api-key") || req.headers.get("authorization")?.replace("Bearer ", "");
+  const expectedKey = process.env.API_KEY;
+  return !!expectedKey && apiKey === expectedKey;
 }
 
 export default auth((req) => {
@@ -50,10 +67,27 @@ export default auth((req) => {
     pathname === "/favicon.ico";
 
   // Widget and auto-log APIs use API key auth
-  const isWidget = pathname === "/api/widget";
-  const isAutoLog = pathname === "/api/entries/auto";
+  const isApiKeyRoute = pathname === "/api/widget" || pathname === "/api/entries/auto";
 
-  const response = isPublic || isWidget || isAutoLog ? NextResponse.next() : undefined;
+  if (isApiKeyRoute) {
+    if (!verifyApiKey(req)) {
+      const res = new NextResponse(JSON.stringify({ error: "Invalid API key" }), {
+        status: 401,
+        headers: { "Content-Type": "application/json" },
+      });
+      for (const [key, value] of Object.entries(securityHeaders)) {
+        res.headers.set(key, value);
+      }
+      return res;
+    }
+    const res = NextResponse.next();
+    for (const [key, value] of Object.entries(securityHeaders)) {
+      res.headers.set(key, value);
+    }
+    return res;
+  }
+
+  const response = isPublic ? NextResponse.next() : undefined;
 
   // If not public and not authenticated -> redirect to login
   if (!response && !req.auth) {

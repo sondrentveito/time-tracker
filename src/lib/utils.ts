@@ -2,8 +2,11 @@ import type { TimeEntry, WorkRulesConfig, WorkPeriod } from "./types";
 
 // ─── Date Parsing ───
 
-/** Parse "dd.mm.yyyy" to Date object */
+/** Parse "dd.mm.yyyy" to Date object. Returns null for invalid input. */
 export function parseDate(dateStr: string): Date {
+  if (!dateStr || !/^\d{2}\.\d{2}\.\d{4}$/.test(dateStr)) {
+    return new Date(NaN);
+  }
   const [day, month, year] = dateStr.split(".").map(Number);
   return new Date(year, month - 1, day);
 }
@@ -31,12 +34,16 @@ export function formatDuration(hours: number): string {
   return `${sign}${h}t ${m}m`;
 }
 
-/** Calculate duration between two time strings "HH:mm" in decimal hours */
+/** Calculate duration between two time strings "HH:mm" in decimal hours.
+ *  Handles cross-midnight shifts (e.g. 22:00 -> 06:00 = 8 hours). */
 export function calculateDuration(start: string, end: string): number {
   const [sh, sm] = start.split(":").map(Number);
   const [eh, em] = end.split(":").map(Number);
   const startMinutes = sh * 60 + sm;
-  const endMinutes = eh * 60 + em;
+  let endMinutes = eh * 60 + em;
+  if (endMinutes < startMinutes) {
+    endMinutes += 24 * 60; // cross-midnight
+  }
   return (endMinutes - startMinutes) / 60;
 }
 

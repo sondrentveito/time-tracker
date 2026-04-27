@@ -16,7 +16,7 @@ import {
 import { ENTRY_TYPE_LABELS, LOCATION_LABELS } from "@/lib/types";
 
 export default function InnsiktPage() {
-  const { entries, isLoading } = useEntries();
+  const { entries, isLoading, error } = useEntries();
   const { rules } = useWorkRules();
   const [period, setPeriod] = useState<PeriodType>("month");
 
@@ -24,6 +24,20 @@ export default function InnsiktPage() {
     return (
       <div className="flex items-center justify-center h-full">
         <div className="text-sm" style={{ color: "var(--fg-muted)" }}>Laster...</div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="flex items-center justify-center h-full">
+        <div className="glass-card p-6 text-center max-w-sm">
+          <p className="text-sm font-medium" style={{ color: "var(--danger)" }}>Kunne ikke laste innsikt</p>
+          <p className="text-xs mt-2" style={{ color: "var(--fg-muted)" }}>{error.message}</p>
+          <button onClick={() => window.location.reload()} className="btn-secondary text-sm mt-4">
+            Prøv igjen
+          </button>
+        </div>
       </div>
     );
   }
@@ -73,7 +87,7 @@ export default function InnsiktPage() {
               onClick={() => setPeriod(p)}
               className={`segment-btn ${period === p ? "active" : ""}`}
             >
-              {p === "week" ? "Uke" : p === "month" ? "Maned" : "Ar"}
+              {p === "week" ? "Uke" : p === "month" ? "Måned" : "År"}
             </button>
           ))}
         </div>

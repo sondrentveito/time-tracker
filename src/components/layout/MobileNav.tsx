@@ -46,6 +46,7 @@ export default function MobileNav({ pathname }: MobileNavProps) {
             onClick={toggle}
             className="w-8 h-8 rounded-lg flex items-center justify-center transition-colors"
             style={{ color: "var(--fg-muted)", background: "var(--input-bg)" }}
+            aria-label={theme === "dark" ? "Bytt til lyst tema" : "Bytt til mørkt tema"}
           >
             {theme === "dark" ? (
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.75} className="w-4 h-4">

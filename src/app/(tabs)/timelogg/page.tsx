@@ -7,7 +7,7 @@ import EntryList from "@/components/timelogg/EntryList";
 import AddEntryModal from "@/components/timelogg/AddEntryModal";
 
 export default function TimeloggPage() {
-  const { entries, isLoading } = useEntries();
+  const { entries, isLoading, error } = useEntries();
   const { rules } = useWorkRules();
   const [showAdd, setShowAdd] = useState(false);
 
@@ -15,6 +15,20 @@ export default function TimeloggPage() {
     return (
       <div className="flex items-center justify-center h-full">
         <div className="text-sm" style={{ color: "var(--fg-muted)" }}>Laster...</div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="flex items-center justify-center h-full">
+        <div className="glass-card p-6 text-center max-w-sm">
+          <p className="text-sm font-medium" style={{ color: "var(--danger)" }}>Kunne ikke laste timelogg</p>
+          <p className="text-xs mt-2" style={{ color: "var(--fg-muted)" }}>{error.message}</p>
+          <button onClick={() => window.location.reload()} className="btn-secondary text-sm mt-4">
+            Prøv igjen
+          </button>
+        </div>
       </div>
     );
   }

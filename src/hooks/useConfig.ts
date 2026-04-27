@@ -6,7 +6,9 @@ import { getDefaultWorkRules } from "@/lib/utils";
 
 async function fetchConfig(key: string): Promise<string | null> {
   const res = await fetch(`/api/config?key=${key}`);
-  if (!res.ok) return null;
+  if (!res.ok) {
+    throw new Error(`Feil ved henting av konfigurasjon (${res.status})`);
+  }
   const data = await res.json();
   return data.value ?? null;
 }
@@ -45,6 +47,9 @@ export function useSaveWorkRules() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["config", "work-rules"] });
     },
+    onError: (error: Error) => {
+      console.error("Kunne ikke lagre arbeidsregler:", error.message);
+    },
   });
 }
 
@@ -72,6 +77,9 @@ export function useSaveFlexBalance() {
       saveConfig("flex-balance", JSON.stringify(config)),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["config", "flex-balance"] });
+    },
+    onError: (error: Error) => {
+      console.error("Kunne ikke lagre fleks-saldo:", error.message);
     },
   });
 }

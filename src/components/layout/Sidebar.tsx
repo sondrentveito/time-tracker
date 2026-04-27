@@ -83,6 +83,7 @@ export default function Sidebar({ pathname, dataUpdatedAt }: SidebarProps) {
           onClick={toggle}
           className="flex items-center gap-3 px-3 py-2.5 rounded-xl text-[13px] font-medium transition-all w-full"
           style={{ color: "var(--fg-muted)" }}
+          aria-label={theme === "dark" ? "Bytt til lyst tema" : "Bytt til mørkt tema"}
         >
           {theme === "dark" ? (
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.75} className="w-5 h-5">

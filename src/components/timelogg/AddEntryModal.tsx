@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { useCreateEntry } from "@/hooks/useEntries";
 import { calculateDuration, formatDate, formatDuration } from "@/lib/utils";
 import { ENTRY_TYPE_LABELS, LOCATION_LABELS } from "@/lib/types";
@@ -13,6 +13,8 @@ interface AddEntryModalProps {
 export default function AddEntryModal({ onClose }: AddEntryModalProps) {
   const createEntry = useCreateEntry();
   const overlayRef = useRef<HTMLDivElement>(null);
+  const firstInputRef = useRef<HTMLInputElement>(null);
+  const [error, setError] = useState<string | null>(null);
 
   const now = new Date();
   const [date, setDate] = useState(formatDate(now));
@@ -24,6 +26,11 @@ export default function AddEntryModal({ onClose }: AddEntryModalProps) {
 
   const duration = calculateDuration(start, end);
 
+  // Focus first input on mount
+  useEffect(() => {
+    firstInputRef.current?.focus();
+  }, []);
+
   useEffect(() => {
     function handleKeyDown(e: KeyboardEvent) {
       if (e.key === "Escape") onClose();
@@ -32,26 +39,53 @@ export default function AddEntryModal({ onClose }: AddEntryModalProps) {
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, [onClose]);
 
+  // Focus trap
+  const handleFocusTrap = useCallback((e: KeyboardEvent) => {
+    if (e.key !== "Tab" || !overlayRef.current) return;
+    const focusable = overlayRef.current.querySelectorAll<HTMLElement>(
+      'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'
+    );
+    if (focusable.length === 0) return;
+    const first = focusable[0];
+    const last = focusable[focusable.length - 1];
+    if (e.shiftKey && document.activeElement === first) {
+      e.preventDefault();
+      last.focus();
+    } else if (!e.shiftKey && document.activeElement === last) {
+      e.preventDefault();
+      first.focus();
+    }
+  }, []);
+
+  useEffect(() => {
+    window.addEventListener("keydown", handleFocusTrap);
+    return () => window.removeEventListener("keydown", handleFocusTrap);
+  }, [handleFocusTrap]);
+
   function handleOverlayClick(e: React.MouseEvent) {
     if (e.target === overlayRef.current) onClose();
   }
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
+    setError(null);
     if (duration <= 0) return;
 
-    await createEntry.mutateAsync({
-      date,
-      start,
-      end,
-      duration,
-      type,
-      location,
-      note,
-      auto: false,
-    });
-
-    onClose();
+    try {
+      await createEntry.mutateAsync({
+        date,
+        start,
+        end,
+        duration,
+        type,
+        location,
+        note,
+        auto: false,
+      });
+      onClose();
+    } catch {
+      setError("Kunne ikke lagre registreringen. Prøv igjen.");
+    }
   }
 
   return (
@@ -60,6 +94,9 @@ export default function AddEntryModal({ onClose }: AddEntryModalProps) {
       onClick={handleOverlayClick}
       className="fixed inset-0 z-50 flex items-center justify-center p-5"
       style={{ background: "rgba(0,0,0,0.5)", backdropFilter: "blur(8px)" }}
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="add-entry-title"
     >
       <form
         onSubmit={handleSubmit}
@@ -67,18 +104,25 @@ export default function AddEntryModal({ onClose }: AddEntryModalProps) {
         style={{ background: "var(--bg-secondary)", border: "1px solid var(--card-border)" }}
       >
         <div className="flex items-center justify-between">
-          <h2 className="text-lg font-semibold">Ny registrering</h2>
-          <button type="button" onClick={onClose} className="p-1" style={{ color: "var(--fg-muted)" }}>
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} className="w-5 h-5">
+          <h2 id="add-entry-title" className="text-lg font-semibold">Ny registrering</h2>
+          <button type="button" onClick={onClose} className="p-1" style={{ color: "var(--fg-muted)" }} aria-label="Lukk">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} className="w-5 h-5" aria-hidden="true">
               <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
             </svg>
           </button>
         </div>
 
+        {error && (
+          <div className="text-sm p-3 rounded-xl" style={{ color: "var(--danger)", background: "var(--danger-soft, rgba(255,59,48,0.1))" }}>
+            {error}
+          </div>
+        )}
+
         {/* Date */}
         <div>
           <label className="text-xs font-medium mb-1.5 block" style={{ color: "var(--fg-muted)" }}>Dato</label>
           <input
+            ref={firstInputRef}
             type="text"
             value={date}
             onChange={(e) => setDate(e.target.value)}

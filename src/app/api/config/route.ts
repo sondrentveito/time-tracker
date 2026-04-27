@@ -20,6 +20,9 @@ export const GET = auth(async (req) => {
     const key = searchParams.get("key");
 
     if (key) {
+      if (!ALLOWED_KEYS.includes(key as ConfigKey)) {
+        return NextResponse.json({ error: `Invalid config key: ${key}` }, { status: 400 });
+      }
       const value = await readConfigKey(key);
       return NextResponse.json({ key, value });
     }
