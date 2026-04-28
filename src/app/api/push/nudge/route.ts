@@ -9,16 +9,12 @@ import {
   sendPushNotification,
   type PushPayload,
 } from "@/lib/push";
+import { verifyApiKey } from "@/lib/security";
 
 const NUDGE_STATE_KEY = "push-nudge-state";
 
-function verifyApiKey(req: NextRequest): boolean {
-  const apiKey = req.headers.get("x-api-key") || req.headers.get("authorization")?.replace("Bearer ", "");
-  return !!process.env.API_KEY && apiKey === process.env.API_KEY;
-}
-
 export async function POST(req: NextRequest) {
-  if (!verifyApiKey(req)) {
+  if (!verifyApiKey(req.headers)) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 

@@ -3,13 +3,11 @@ import { NextResponse } from "next/server";
 import { readConfig, readConfigKey, writeConfigKey } from "@/lib/googleSheets";
 import type { ConfigKey } from "@/lib/types";
 
-const ALLOWED_KEYS: ConfigKey[] = [
+const USER_CONFIG_KEYS: ConfigKey[] = [
   "work-rules",
   "locations",
   "flex-balance",
   "seen-locations",
-  "push-subscriptions",
-  "push-nudge-state",
 ];
 
 export const GET = auth(async (req) => {
@@ -22,7 +20,7 @@ export const GET = auth(async (req) => {
     const key = searchParams.get("key");
 
     if (key) {
-      if (!ALLOWED_KEYS.includes(key as ConfigKey)) {
+      if (!USER_CONFIG_KEYS.includes(key as ConfigKey)) {
         return NextResponse.json({ error: `Invalid config key: ${key}` }, { status: 400 });
       }
       const value = await readConfigKey(key);
@@ -30,7 +28,10 @@ export const GET = auth(async (req) => {
     }
 
     const config = await readConfig();
-    return NextResponse.json({ config });
+    const safeConfig = Object.fromEntries(
+      Object.entries(config).filter(([key]) => USER_CONFIG_KEYS.includes(key as ConfigKey))
+    );
+    return NextResponse.json({ config: safeConfig });
   } catch (error) {
     console.error("Failed to read config:", error);
     return NextResponse.json({ error: "Failed to read config" }, { status: 500 });
@@ -50,7 +51,7 @@ export const PUT = auth(async (req) => {
       return NextResponse.json({ error: "Missing key or value" }, { status: 400 });
     }
 
-    if (!ALLOWED_KEYS.includes(key as ConfigKey)) {
+    if (!USER_CONFIG_KEYS.includes(key as ConfigKey)) {
       return NextResponse.json({ error: `Invalid config key: ${key}` }, { status: 400 });
     }
 

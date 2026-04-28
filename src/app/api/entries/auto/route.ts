@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { appendSheetRow } from "@/lib/googleSheets";
 import { calculateEntryDuration, formatDate } from "@/lib/utils";
 import { createWorkdayIfMissing, getWorkRulesFromConfig } from "@/lib/workday";
+import { isValidEntryType, isValidLocation, isValidTime, sanitizeNote, verifyApiKey } from "@/lib/security";
 
 /** Auto-log endpoint for iOS Shortcuts / external triggers.
  *  Authenticated via API key (x-api-key header).
@@ -14,8 +15,7 @@ import { createWorkdayIfMissing, getWorkRulesFromConfig } from "@/lib/workday";
  *  - { action: "parse", text: "Jobbet 8-16 hjemmefra" } (AI-powered)
  */
 export async function POST(req: NextRequest) {
-  const apiKey = req.headers.get("x-api-key");
-  if (!apiKey || apiKey !== process.env.API_KEY) {
+  if (!verifyApiKey(req.headers)) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
@@ -26,11 +26,20 @@ export async function POST(req: NextRequest) {
 
     if (action === "log") {
       const { start, end, type = "work", location = "office", note = "" } = body;
-      if (!start || !end) {
-        return NextResponse.json({ error: "Missing start/end" }, { status: 400 });
+      if (!isValidTime(start) || !isValidTime(end)) {
+        return NextResponse.json({ error: "Invalid start/end" }, { status: 400 });
+      }
+      if (!isValidEntryType(type)) {
+        return NextResponse.json({ error: "Invalid type" }, { status: 400 });
+      }
+      if (!isValidLocation(location)) {
+        return NextResponse.json({ error: "Invalid location" }, { status: 400 });
       }
 
       const duration = calculateEntryDuration(start, end, type, rules);
+      if (duration <= 0 || duration > 24) {
+        return NextResponse.json({ error: "Invalid duration" }, { status: 400 });
+      }
       const date = formatDate(new Date());
 
       const timestamp = await appendSheetRow({
@@ -40,7 +49,7 @@ export async function POST(req: NextRequest) {
         duration,
         type,
         location,
-        note,
+        note: sanitizeNote(note),
         auto: true,
       });
 
@@ -48,11 +57,21 @@ export async function POST(req: NextRequest) {
     }
 
     if (action === "workday") {
+      if (body.start !== undefined && !isValidTime(body.start)) {
+        return NextResponse.json({ error: "Invalid start" }, { status: 400 });
+      }
+      if (body.end !== undefined && !isValidTime(body.end)) {
+        return NextResponse.json({ error: "Invalid end" }, { status: 400 });
+      }
+      if (body.location !== undefined && !isValidLocation(body.location)) {
+        return NextResponse.json({ error: "Invalid location" }, { status: 400 });
+      }
+
       const result = await createWorkdayIfMissing({
         start: body.start,
         end: body.end,
         location: body.location,
-        note: body.note,
+        note: sanitizeNote(body.note),
         auto: true,
       });
       return NextResponse.json(result);

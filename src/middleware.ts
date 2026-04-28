@@ -1,5 +1,6 @@
 import { auth } from "@/lib/auth";
 import { NextResponse } from "next/server";
+import { verifyApiKey } from "@/lib/security";
 
 const securityHeaders = {
   "X-Content-Type-Options": "nosniff",
@@ -7,6 +8,27 @@ const securityHeaders = {
   "X-XSS-Protection": "0",
   "Referrer-Policy": "strict-origin-when-cross-origin",
   "Permissions-Policy": "camera=(), microphone=(), geolocation=(self)",
+  "Cross-Origin-Opener-Policy": "same-origin",
+  ...(process.env.NODE_ENV === "production"
+    ? {
+        "Strict-Transport-Security": "max-age=63072000; includeSubDomains; preload",
+        "Content-Security-Policy": [
+          "default-src 'self'",
+          "base-uri 'self'",
+          "object-src 'none'",
+          "frame-ancestors 'none'",
+          "form-action 'self'",
+          "manifest-src 'self'",
+          "worker-src 'self'",
+          "img-src 'self' data: https:",
+          "font-src 'self' data:",
+          "style-src 'self' 'unsafe-inline'",
+          "script-src 'self' 'unsafe-inline' 'unsafe-eval'",
+          "connect-src 'self' https://accounts.google.com https://sheets.googleapis.com",
+          "frame-src https://accounts.google.com",
+        ].join("; "),
+      }
+    : {}),
 };
 
 // Simple in-memory rate limiter for API routes
@@ -33,12 +55,6 @@ function isRateLimited(ip: string): boolean {
   }
   entry.count++;
   return entry.count > RATE_LIMIT;
-}
-
-function verifyApiKey(req: { headers: Headers }): boolean {
-  const apiKey = req.headers.get("x-api-key") || req.headers.get("authorization")?.replace("Bearer ", "");
-  const expectedKey = process.env.API_KEY;
-  return !!expectedKey && apiKey === expectedKey;
 }
 
 export default auth((req) => {
@@ -69,7 +85,7 @@ export default auth((req) => {
   const isApiKeyRoute = pathname === "/api/widget" || pathname === "/api/entries/auto" || pathname === "/api/push/nudge";
 
   if (isApiKeyRoute) {
-    if (!verifyApiKey(req)) {
+    if (!verifyApiKey(req.headers)) {
       const res = new NextResponse(JSON.stringify({ error: "Invalid API key" }), {
         status: 401,
         headers: { "Content-Type": "application/json" },

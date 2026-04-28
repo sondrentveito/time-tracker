@@ -9,6 +9,7 @@ import {
   normalizeWorkRules,
 } from "@/lib/utils";
 import type { LocationType, TimeEntry, WorkRulesConfig } from "@/lib/types";
+import { isValidLocation, isValidTime, sanitizeNote } from "@/lib/security";
 
 interface WorkdayOptions {
   start?: string;
@@ -51,8 +52,15 @@ export async function createWorkdayIfMissing(options: WorkdayOptions = {}) {
   }
 
   const start = options.start ?? "08:00";
+  if (!isValidTime(start)) throw new Error("Invalid start time");
+
   const expected = getExpectedHours(new Date(), rules);
   const end = options.end ?? addMinutesToTime(start, Math.round(expected * 60 + getLunchMinutes(rules)));
+  if (!isValidTime(end)) throw new Error("Invalid end time");
+
+  const location = options.location ?? "home";
+  if (!isValidLocation(location)) throw new Error("Invalid location");
+
   const duration = calculateEntryDuration(start, end, "work", rules);
 
   const timestamp = await appendSheetRow({
@@ -61,8 +69,8 @@ export async function createWorkdayIfMissing(options: WorkdayOptions = {}) {
     end,
     duration,
     type: "work",
-    location: options.location ?? "home",
-    note: options.note ?? "Automatisk arbeidsdag",
+    location,
+    note: options.note ? sanitizeNote(options.note) : "Automatisk arbeidsdag",
     auto: options.auto ?? true,
   });
 
