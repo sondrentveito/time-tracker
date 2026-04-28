@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import Image from "next/image";
 import { useSession, signOut } from "next-auth/react";
 import { useTheme } from "@/context/ThemeContext";
 import { NAV_ITEMS } from "./NavItems";
@@ -28,7 +29,7 @@ export default function Sidebar({ pathname, dataUpdatedAt }: SidebarProps) {
             <path strokeLinecap="round" strokeLinejoin="round" d="M12 6v6h4.5m4.5 0a9 9 0 11-18 0 9 9 0 0118 0z" />
           </svg>
         </div>
-        <span className="text-[15px] font-semibold tracking-tight">Tidbank</span>
+        <span className="text-[15px] font-semibold tracking-tight">tempo</span>
       </div>
 
       {/* Nav Items */}
@@ -101,11 +102,14 @@ export default function Sidebar({ pathname, dataUpdatedAt }: SidebarProps) {
         {session?.user && (
           <div className="flex items-center gap-2 px-3 py-2">
             {session.user.image && (
-              <img
+              <Image
                 src={session.user.image}
                 alt=""
-                className="w-6 h-6 rounded-full"
+                width={24}
+                height={24}
+                className="rounded-full"
                 referrerPolicy="no-referrer"
+                unoptimized
               />
             )}
             <span className="text-[11px] truncate flex-1" style={{ color: "var(--fg-faint)" }}>

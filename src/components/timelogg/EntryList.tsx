@@ -3,7 +3,7 @@
 import { useState } from "react";
 import type { TimeEntry, WorkRulesConfig } from "@/lib/types";
 import { ENTRY_TYPE_LABELS, ENTRY_TYPE_COLORS, LOCATION_LABELS } from "@/lib/types";
-import { parseDate, formatDateLong, formatDuration, getExpectedHours } from "@/lib/utils";
+import { calculateEntryDuration, parseDate, formatDateLong, formatDuration, getExpectedHours } from "@/lib/utils";
 import { useUpdateEntry, useDeleteEntry } from "@/hooks/useEntries";
 
 interface EntryListProps {
@@ -44,7 +44,7 @@ function DayTotal({ entries, date, rules }: { entries: TimeEntry[]; date: string
   );
 }
 
-function EntryRow({ entry }: { entry: TimeEntry }) {
+function EntryRow({ entry, rules }: { entry: TimeEntry; rules: WorkRulesConfig }) {
   const [editing, setEditing] = useState(false);
   const [start, setStart] = useState(entry.start);
   const [end, setEnd] = useState(entry.end);
@@ -57,9 +57,7 @@ function EntryRow({ entry }: { entry: TimeEntry }) {
   const locationLabel = LOCATION_LABELS[entry.location];
 
   function handleSave() {
-    const [sh, sm] = start.split(":").map(Number);
-    const [eh, em] = end.split(":").map(Number);
-    const duration = (eh * 60 + em - sh * 60 - sm) / 60;
+    const duration = calculateEntryDuration(start, end, entry.type, rules);
     updateEntry.mutate({ timestamp: entry.timestamp, start, end, duration, note });
     setEditing(false);
   }
@@ -159,7 +157,7 @@ export default function EntryList({ entries, rules }: EntryListProps) {
     return (
       <div className="glass-card p-8 text-center animate-in stagger-1">
         <p style={{ color: "var(--fg-muted)" }}>Ingen registreringer enda.</p>
-        <p className="text-xs mt-2" style={{ color: "var(--fg-faint)" }}>Klikk &quot;Ny registrering&quot; for a legge til.</p>
+        <p className="text-xs mt-2" style={{ color: "var(--fg-faint)" }}>Klikk &quot;Ny registrering&quot; for å legge til.</p>
       </div>
     );
   }
@@ -176,7 +174,7 @@ export default function EntryList({ entries, rules }: EntryListProps) {
           </div>
           <div className="space-y-2">
             {dayEntries.map((entry) => (
-              <EntryRow key={entry.timestamp} entry={entry} />
+              <EntryRow key={entry.timestamp} entry={entry} rules={rules} />
             ))}
           </div>
         </section>

@@ -7,7 +7,6 @@ const securityHeaders = {
   "X-XSS-Protection": "0",
   "Referrer-Policy": "strict-origin-when-cross-origin",
   "Permissions-Policy": "camera=(), microphone=(), geolocation=(self)",
-  "Content-Security-Policy": "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; font-src 'self'; connect-src 'self' https://accounts.google.com https://sheets.googleapis.com; frame-src https://accounts.google.com;",
 };
 
 // Simple in-memory rate limiter for API routes
@@ -66,8 +65,8 @@ export default auth((req) => {
     pathname === "/sw.js" ||
     pathname === "/favicon.ico";
 
-  // Widget and auto-log APIs use API key auth
-  const isApiKeyRoute = pathname === "/api/widget" || pathname === "/api/entries/auto";
+  // Widget, auto-log and scheduled nudge APIs use API key auth
+  const isApiKeyRoute = pathname === "/api/widget" || pathname === "/api/entries/auto" || pathname === "/api/push/nudge";
 
   if (isApiKeyRoute) {
     if (!verifyApiKey(req)) {

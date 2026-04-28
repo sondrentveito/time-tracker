@@ -2,7 +2,7 @@
 
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import type { WorkRulesConfig, FlexBalanceConfig } from "@/lib/types";
-import { getDefaultWorkRules } from "@/lib/utils";
+import { getDefaultWorkRules, normalizeWorkRules } from "@/lib/utils";
 
 async function fetchConfig(key: string): Promise<string | null> {
   const res = await fetch(`/api/config?key=${key}`);
@@ -27,7 +27,7 @@ export function useWorkRules() {
     queryKey: ["config", "work-rules"],
     queryFn: async (): Promise<WorkRulesConfig> => {
       const raw = await fetchConfig("work-rules");
-      if (raw) return JSON.parse(raw);
+      if (raw) return normalizeWorkRules(JSON.parse(raw));
       return getDefaultWorkRules();
     },
     staleTime: 60_000,

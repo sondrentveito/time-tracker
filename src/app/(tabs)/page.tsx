@@ -2,10 +2,9 @@
 
 import { useEntries } from "@/hooks/useEntries";
 import { useWorkRules, useFlexBalance } from "@/hooks/useConfig";
-import TodayStatus from "@/components/dashboard/TodayStatus";
+import OverviewHero from "@/components/dashboard/OverviewHero";
+import WorkdayAssistant from "@/components/dashboard/WorkdayAssistant";
 import WeekOverview from "@/components/dashboard/WeekOverview";
-import FlexBalanceCard from "@/components/dashboard/FlexBalance";
-import MonthSummary from "@/components/dashboard/MonthSummary";
 
 export default function DashboardPage() {
   const { entries, isLoading, error } = useEntries();
@@ -35,16 +34,10 @@ export default function DashboardPage() {
   }
 
   return (
-    <div className="p-5 md:p-8 max-w-4xl mx-auto space-y-5">
-      <h1 className="text-xl font-semibold animate-in">Oversikt</h1>
-
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <TodayStatus entries={entries} rules={rules} />
-        <FlexBalanceCard entries={entries} rules={rules} flexConfig={flexConfig} />
-      </div>
-
+    <div className="p-5 md:p-8 max-w-5xl mx-auto space-y-5">
+      <OverviewHero entries={entries} rules={rules} flexConfig={flexConfig} />
+      <WorkdayAssistant entries={entries} rules={rules} />
       <WeekOverview entries={entries} rules={rules} />
-      <MonthSummary entries={entries} rules={rules} />
     </div>
   );
 }

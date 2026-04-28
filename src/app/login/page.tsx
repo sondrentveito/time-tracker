@@ -26,10 +26,10 @@ function LoginContent() {
 
         <div>
           <h1 className="text-xl font-semibold" style={{ color: "var(--fg)" }}>
-            Tidbank
+            tempo
           </h1>
           <p className="text-sm mt-1" style={{ color: "var(--fg-muted)" }}>
-            Logg inn for a fortsette
+            Logg inn for å fortsette
           </p>
         </div>
 
@@ -40,7 +40,7 @@ function LoginContent() {
           >
             {error === "AccessDenied"
               ? "Kontoen din har ikke tilgang. Kontakt administrator."
-              : "Noe gikk galt. Prov igjen."}
+                : "Noe gikk galt. Prøv igjen."}
           </div>
         )}
 

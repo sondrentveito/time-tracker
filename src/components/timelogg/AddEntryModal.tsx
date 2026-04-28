@@ -2,7 +2,8 @@
 
 import { useState, useEffect, useRef, useCallback } from "react";
 import { useCreateEntry } from "@/hooks/useEntries";
-import { calculateDuration, formatDate, formatDuration } from "@/lib/utils";
+import { useWorkRules } from "@/hooks/useConfig";
+import { calculateDuration, calculateEntryDuration, formatDate, formatDuration } from "@/lib/utils";
 import { ENTRY_TYPE_LABELS, LOCATION_LABELS } from "@/lib/types";
 import type { EntryType, LocationType } from "@/lib/types";
 
@@ -12,6 +13,7 @@ interface AddEntryModalProps {
 
 export default function AddEntryModal({ onClose }: AddEntryModalProps) {
   const createEntry = useCreateEntry();
+  const { rules } = useWorkRules();
   const overlayRef = useRef<HTMLDivElement>(null);
   const firstInputRef = useRef<HTMLInputElement>(null);
   const [error, setError] = useState<string | null>(null);
@@ -24,7 +26,9 @@ export default function AddEntryModal({ onClose }: AddEntryModalProps) {
   const [location, setLocation] = useState<LocationType>("office");
   const [note, setNote] = useState("");
 
-  const duration = calculateDuration(start, end);
+  const grossDuration = calculateDuration(start, end);
+  const duration = calculateEntryDuration(start, end, type, rules);
+  const lunchDeducted = type === "work" && grossDuration > duration;
 
   // Focus first input on mount
   useEffect(() => {
@@ -147,6 +151,11 @@ export default function AddEntryModal({ onClose }: AddEntryModalProps) {
         {duration > 0 && (
           <div className="text-center text-sm" style={{ color: "var(--accent)" }}>
             {formatDuration(duration)}
+            {lunchDeducted && (
+              <span className="ml-1" style={{ color: "var(--fg-faint)" }}>
+                etter {formatDuration(grossDuration - duration)} lunsj
+              </span>
+            )}
           </div>
         )}
 

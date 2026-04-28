@@ -1,6 +1,6 @@
-# Tidbank
+# tempo
 
-En moderne, AI-first tidsregistreringsapp for å holde oversikt over arbeidstimer og avspaserings-saldo.
+En moderne, AI-first app for automatisk og fleksibel tidslogging.
 
 ## Tech Stack
 
@@ -31,6 +31,11 @@ En moderne, AI-first tidsregistreringsapp for å holde oversikt over arbeidstime
 - API-endepunkt for iOS Shortcuts / eksterne triggere
 - Støtte for manuell logging via API (`action: "log"`)
 - Planlagt: Geofence-basert arrive/depart, AI-parsing av naturlig språk
+
+### PWA-varsler
+- Installer appen på hjemskjermen og aktiver varsler under Innstillinger
+- Generer VAPID-nøkler med `npx web-push generate-vapid-keys`
+- Kjør morgen-nudge fra cron/Shortcuts med `POST /api/push/nudge` og header `x-api-key: <API_KEY>`
 
 ### Design
 - Dark/light theme med glass-morphism design

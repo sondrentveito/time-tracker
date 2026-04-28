@@ -28,6 +28,7 @@ export interface WorkPeriod {
 export interface WorkRulesConfig {
   periods: WorkPeriod[];
   defaultHoursPerDay: number;
+  lunchMinutes: number;     // fixed lunch deduction for long work entries
 }
 
 // ─── Location Rules (for auto-logging) ───
@@ -58,7 +59,9 @@ export type ConfigKey =
   | "work-rules"
   | "locations"
   | "flex-balance"
-  | "seen-locations";
+  | "seen-locations"
+  | "push-subscriptions"
+  | "push-nudge-state";
 
 // ─── Entry type display helpers ───
 

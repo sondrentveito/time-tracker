@@ -1,4 +1,4 @@
-import type { TimeEntry, WorkRulesConfig, WorkPeriod } from "./types";
+import type { EntryType, TimeEntry, WorkRulesConfig } from "./types";
 
 // ─── Date Parsing ───
 
@@ -45,6 +45,37 @@ export function calculateDuration(start: string, end: string): number {
     endMinutes += 24 * 60; // cross-midnight
   }
   return (endMinutes - startMinutes) / 60;
+}
+
+const LUNCH_DEDUCTION_THRESHOLD_HOURS = 5;
+
+export function getLunchMinutes(rules: WorkRulesConfig): number {
+  return Math.max(0, rules.lunchMinutes ?? getDefaultWorkRules().lunchMinutes);
+}
+
+export function calculateEntryDuration(
+  start: string,
+  end: string,
+  type: EntryType,
+  rules: WorkRulesConfig,
+): number {
+  const gross = calculateDuration(start, end);
+  const lunchHours = getLunchMinutes(rules) / 60;
+
+  if (type !== "work" || gross <= LUNCH_DEDUCTION_THRESHOLD_HOURS || lunchHours <= 0) {
+    return gross;
+  }
+
+  return Math.max(0, gross - lunchHours);
+}
+
+export function addMinutesToTime(time: string, minutesToAdd: number): string {
+  const [hours, minutes] = time.split(":").map(Number);
+  const total = (hours * 60 + minutes + minutesToAdd) % (24 * 60);
+  const normalized = total < 0 ? total + 24 * 60 : total;
+  const h = Math.floor(normalized / 60).toString().padStart(2, "0");
+  const m = (normalized % 60).toString().padStart(2, "0");
+  return `${h}:${m}`;
 }
 
 // ─── Week Helpers ───
@@ -119,6 +150,7 @@ function isDateInPeriod(mmdd: string, from: string, to: string): boolean {
 export function getDefaultWorkRules(): WorkRulesConfig {
   return {
     defaultHoursPerDay: 7.5,
+    lunchMinutes: 30,
     periods: [
       {
         id: "summer",
@@ -128,6 +160,19 @@ export function getDefaultWorkRules(): WorkRulesConfig {
         label: "Sommertid",
       },
     ],
+  };
+}
+
+export function normalizeWorkRules(rules: Partial<WorkRulesConfig> | null | undefined): WorkRulesConfig {
+  const defaults = getDefaultWorkRules();
+  return {
+    defaultHoursPerDay: Number.isFinite(rules?.defaultHoursPerDay)
+      ? rules!.defaultHoursPerDay!
+      : defaults.defaultHoursPerDay,
+    lunchMinutes: Number.isFinite(rules?.lunchMinutes)
+      ? rules!.lunchMinutes!
+      : defaults.lunchMinutes,
+    periods: Array.isArray(rules?.periods) ? rules!.periods! : defaults.periods,
   };
 }
 

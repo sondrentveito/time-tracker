@@ -2,22 +2,15 @@
 
 import { useState } from "react";
 import { useEntries } from "@/hooks/useEntries";
-import { useWorkRules } from "@/hooks/useConfig";
 import {
   filterEntriesByPeriod,
   formatDuration,
-  getExpectedHours,
-  getMonthName,
-  getWeekNumber,
-  parseDate,
-  calculateFlexBalance,
   type PeriodType,
 } from "@/lib/utils";
 import { ENTRY_TYPE_LABELS, LOCATION_LABELS } from "@/lib/types";
 
 export default function InnsiktPage() {
   const { entries, isLoading, error } = useEntries();
-  const { rules } = useWorkRules();
   const [period, setPeriod] = useState<PeriodType>("month");
 
   if (isLoading) {

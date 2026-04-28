@@ -22,13 +22,17 @@ export const viewport: Viewport = {
 };
 
 export const metadata: Metadata = {
-  title: "Tidbank",
-  description: "Hold oversikt over arbeidstimer og avspasering",
+  title: "tempo",
+  description: "Automatisk og fleksibel tidslogging",
   manifest: "/manifest.json",
+  icons: {
+    icon: [{ url: "/icon.svg", type: "image/svg+xml" }],
+    apple: [{ url: "/icon.svg", type: "image/svg+xml" }],
+  },
   appleWebApp: {
     capable: true,
     statusBarStyle: "black-translucent",
-    title: "Tidbank",
+    title: "tempo",
   },
 };
 

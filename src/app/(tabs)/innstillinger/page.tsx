@@ -1,44 +1,45 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import Image from "next/image";
+import { useState } from "react";
 import { useSession, signOut } from "next-auth/react";
 import { useTheme } from "@/context/ThemeContext";
 import { useWorkRules, useSaveWorkRules, useFlexBalance, useSaveFlexBalance } from "@/hooks/useConfig";
-import type { WorkPeriod } from "@/lib/types";
+import type { FlexBalanceConfig, WorkPeriod, WorkRulesConfig } from "@/lib/types";
+import NotificationSettings from "@/components/settings/NotificationSettings";
 
 function generateId() {
   return Math.random().toString(36).slice(2, 10);
 }
 
 export default function InnstillingerPage() {
+  const { rules, isLoading: rulesLoading } = useWorkRules();
+  const { config: flexConfig, isLoading: flexLoading } = useFlexBalance();
+
+  if (rulesLoading || flexLoading) {
+    return (
+      <div className="flex items-center justify-center h-full">
+        <div className="text-sm" style={{ color: "var(--fg-muted)" }}>Laster...</div>
+      </div>
+    );
+  }
+
+  return <SettingsForm key={`${JSON.stringify(rules)}-${JSON.stringify(flexConfig)}`} rules={rules} flexConfig={flexConfig} />;
+}
+
+function SettingsForm({ rules, flexConfig }: { rules: WorkRulesConfig; flexConfig: FlexBalanceConfig }) {
   const { data: session } = useSession();
   const { theme, toggle } = useTheme();
-  const { rules, isLoading: rulesLoading } = useWorkRules();
   const saveRules = useSaveWorkRules();
-  const { config: flexConfig, isLoading: flexLoading } = useFlexBalance();
   const saveFlexBalance = useSaveFlexBalance();
 
   const [defaultHours, setDefaultHours] = useState(rules.defaultHoursPerDay);
+  const [lunchMinutes, setLunchMinutes] = useState(rules.lunchMinutes);
   const [periods, setPeriods] = useState<WorkPeriod[]>(rules.periods);
   const [startBalance, setStartBalance] = useState(flexConfig.startBalance);
   const [startDate, setStartDate] = useState(flexConfig.startDate);
   const [saved, setSaved] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
-
-  // Sync state when async data loads
-  useEffect(() => {
-    if (!rulesLoading) {
-      setDefaultHours(rules.defaultHoursPerDay);
-      setPeriods(rules.periods);
-    }
-  }, [rules, rulesLoading]);
-
-  useEffect(() => {
-    if (!flexLoading) {
-      setStartBalance(flexConfig.startBalance);
-      setStartDate(flexConfig.startDate);
-    }
-  }, [flexConfig, flexLoading]);
 
   function addPeriod() {
     setPeriods([...periods, { id: generateId(), from: "05-15", to: "08-31", hoursPerDay: 7, label: "" }]);
@@ -56,7 +57,7 @@ export default function InnstillingerPage() {
     setSaveError(null);
     try {
       await Promise.all([
-        saveRules.mutateAsync({ defaultHoursPerDay: defaultHours, periods }),
+        saveRules.mutateAsync({ defaultHoursPerDay: defaultHours, lunchMinutes, periods }),
         saveFlexBalance.mutateAsync({ startBalance, startDate }),
       ]);
       setSaved(true);
@@ -74,18 +75,37 @@ export default function InnstillingerPage() {
       <div className="glass-card p-5 space-y-4 animate-in stagger-1">
         <h2 className="text-sm font-medium" style={{ color: "var(--fg-muted)" }}>Arbeidstid</h2>
 
-        <div>
-          <label className="text-xs font-medium mb-1.5 block" style={{ color: "var(--fg-muted)" }}>
-            Standard timer per dag
-          </label>
-          <input
-            type="number"
-            step="0.5"
-            value={defaultHours}
-            onChange={(e) => setDefaultHours(parseFloat(e.target.value) || 0)}
-            className="input w-32"
-          />
+        <div className="grid grid-cols-2 gap-3">
+          <div>
+            <label className="text-xs font-medium mb-1.5 block" style={{ color: "var(--fg-muted)" }}>
+              Standard timer per dag
+            </label>
+            <input
+              type="number"
+              step="0.5"
+              value={defaultHours}
+              onChange={(e) => setDefaultHours(parseFloat(e.target.value) || 0)}
+              className="input w-full"
+            />
+          </div>
+          <div>
+            <label className="text-xs font-medium mb-1.5 block" style={{ color: "var(--fg-muted)" }}>
+              Fast lunsj (min)
+            </label>
+            <input
+              type="number"
+              min="0"
+              step="5"
+              value={lunchMinutes}
+              onChange={(e) => setLunchMinutes(parseInt(e.target.value, 10) || 0)}
+              className="input w-full"
+            />
+          </div>
         </div>
+
+        <p className="text-[11px]" style={{ color: "var(--fg-faint)" }}>
+          Lunsj trekkes automatisk fra lange arbeidsøkter. Korte eller splittede registreringer trekkes ikke dobbelt.
+        </p>
 
         <div className="space-y-3">
           <div className="flex items-center justify-between">
@@ -181,18 +201,28 @@ export default function InnstillingerPage() {
         </div>
 
         <p className="text-[11px]" style={{ color: "var(--fg-faint)" }}>
-          Sett startsaldo og dato for a starte beregningen fra et kjent punkt.
+          Sett startsaldo og dato for å starte beregningen fra et kjent punkt.
         </p>
       </div>
 
+      <NotificationSettings />
+
       {/* Account */}
-      <div className="glass-card p-5 space-y-4 animate-in stagger-3">
+      <div className="glass-card p-5 space-y-4 animate-in stagger-4">
         <h2 className="text-sm font-medium" style={{ color: "var(--fg-muted)" }}>Konto</h2>
 
         {session?.user && (
           <div className="flex items-center gap-3">
             {session.user.image && (
-              <img src={session.user.image} alt="" className="w-10 h-10 rounded-full" referrerPolicy="no-referrer" />
+              <Image
+                src={session.user.image}
+                alt=""
+                width={40}
+                height={40}
+                className="rounded-full"
+                referrerPolicy="no-referrer"
+                unoptimized
+              />
             )}
             <div>
               <p className="text-sm font-medium">{session.user.name}</p>
@@ -203,7 +233,7 @@ export default function InnstillingerPage() {
 
         <div className="flex gap-3">
           <button onClick={toggle} className="btn-secondary text-sm">
-            {theme === "dark" ? "Lyst tema" : "Morkt tema"}
+            {theme === "dark" ? "Lyst tema" : "Mørkt tema"}
           </button>
           <button onClick={() => signOut()} className="btn-secondary text-sm" style={{ color: "var(--danger)" }}>
             Logg ut
@@ -220,7 +250,7 @@ export default function InnstillingerPage() {
       <button
         onClick={handleSave}
         disabled={saveRules.isPending || saveFlexBalance.isPending}
-        className="btn-primary w-full animate-in stagger-4"
+        className="btn-primary w-full animate-in stagger-5"
       >
         {saved ? "Lagret!" : saveRules.isPending ? "Lagrer..." : "Lagre innstillinger"}
       </button>

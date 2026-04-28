@@ -1,7 +1,8 @@
 import { auth } from "@/lib/auth";
 import { NextResponse } from "next/server";
-import { fetchSheetRows, appendSheetRow, updateSheetRow, deleteSheetRow } from "@/lib/googleSheets";
-import { parseSheetRow } from "@/lib/api";
+import { appendSheetRow, updateSheetRow, deleteSheetRow } from "@/lib/googleSheets";
+import { calculateEntryDuration } from "@/lib/utils";
+import { fetchEntriesWithComputedDuration, getWorkRulesFromConfig } from "@/lib/workday";
 import type { EntryType, LocationType } from "@/lib/types";
 
 const VALID_TYPES: EntryType[] = ["work", "time-off", "vacation", "sick", "leave"];
@@ -15,8 +16,7 @@ export const GET = auth(async (req) => {
   }
 
   try {
-    const rows = await fetchSheetRows();
-    const entries = rows.map(parseSheetRow);
+    const entries = await fetchEntriesWithComputedDuration();
     return NextResponse.json({ entries });
   } catch (error) {
     console.error("Failed to fetch entries:", error);
@@ -31,9 +31,9 @@ export const POST = auth(async (req) => {
 
   try {
     const body = await req.json();
-    const { date, start, end, duration, type, location, note, auto } = body;
+    const { date, start, end, type, location, note, auto } = body;
 
-    if (!date || !start || !end || duration === undefined || !type) {
+    if (!date || !start || !end || !type) {
       return NextResponse.json({ error: "Missing required fields" }, { status: 400 });
     }
 
@@ -45,16 +45,19 @@ export const POST = auth(async (req) => {
       return NextResponse.json({ error: "Invalid time format. Use HH:mm" }, { status: 400 });
     }
 
-    if (typeof duration !== "number" || duration <= 0 || duration > 24) {
-      return NextResponse.json({ error: "Invalid duration" }, { status: 400 });
-    }
-
     if (!VALID_TYPES.includes(type)) {
       return NextResponse.json({ error: `Invalid type. Must be one of: ${VALID_TYPES.join(", ")}` }, { status: 400 });
     }
 
     if (location && !VALID_LOCATIONS.includes(location)) {
       return NextResponse.json({ error: `Invalid location. Must be one of: ${VALID_LOCATIONS.join(", ")}` }, { status: 400 });
+    }
+
+    const rules = await getWorkRulesFromConfig();
+    const duration = calculateEntryDuration(start, end, type, rules);
+
+    if (duration <= 0 || duration > 24) {
+      return NextResponse.json({ error: "Invalid duration" }, { status: 400 });
     }
 
     const timestamp = await appendSheetRow({
@@ -104,7 +107,25 @@ export const PUT = auth(async (req) => {
     if (updates.location && !VALID_LOCATIONS.includes(updates.location)) {
       return NextResponse.json({ error: "Invalid location" }, { status: 400 });
     }
-    if (updates.duration !== undefined && (typeof updates.duration !== "number" || updates.duration <= 0)) {
+    const rules = await getWorkRulesFromConfig();
+    const existingEntries = await fetchEntriesWithComputedDuration(rules);
+    const existing = existingEntries.find((entry) => entry.timestamp === timestamp);
+
+    if (!existing) {
+      return NextResponse.json({ error: "Entry not found" }, { status: 404 });
+    }
+
+    const nextStart = updates.start ?? existing.start;
+    const nextEnd = updates.end ?? existing.end;
+    const nextType = updates.type ?? existing.type;
+
+    if (!TIME_REGEX.test(nextStart) || !TIME_REGEX.test(nextEnd)) {
+      return NextResponse.json({ error: "Invalid existing time format" }, { status: 400 });
+    }
+
+    updates.duration = calculateEntryDuration(nextStart, nextEnd, nextType, rules);
+
+    if (updates.duration <= 0 || updates.duration > 24) {
       return NextResponse.json({ error: "Invalid duration" }, { status: 400 });
     }
 

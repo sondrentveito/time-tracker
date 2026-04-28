@@ -8,6 +8,8 @@ const ALLOWED_KEYS: ConfigKey[] = [
   "locations",
   "flex-balance",
   "seen-locations",
+  "push-subscriptions",
+  "push-nudge-state",
 ];
 
 export const GET = auth(async (req) => {

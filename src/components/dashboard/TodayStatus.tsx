@@ -2,7 +2,7 @@
 
 import type { TimeEntry, WorkRulesConfig } from "@/lib/types";
 import { ENTRY_TYPE_LABELS, ENTRY_TYPE_COLORS } from "@/lib/types";
-import { formatDuration, getExpectedHours, isToday, parseDate } from "@/lib/utils";
+import { formatDuration, getExpectedHours, isToday } from "@/lib/utils";
 
 interface TodayStatusProps {
   entries: TimeEntry[];

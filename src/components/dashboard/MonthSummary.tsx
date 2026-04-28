@@ -1,7 +1,7 @@
 "use client";
 
 import type { TimeEntry, WorkRulesConfig } from "@/lib/types";
-import { filterEntriesByPeriod, getExpectedHours, formatDuration, getMonthName, parseDate } from "@/lib/utils";
+import { filterEntriesByPeriod, getExpectedHours, formatDuration, getMonthName } from "@/lib/utils";
 
 interface MonthSummaryProps {
   entries: TimeEntry[];

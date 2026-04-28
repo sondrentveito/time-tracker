@@ -1,4 +1,4 @@
-# Utviklingsplan — Tidbank
+# Utviklingsplan — tempo
 
 ## Fase 1: Kjernefunksjonalitet (Ferdig)
 
