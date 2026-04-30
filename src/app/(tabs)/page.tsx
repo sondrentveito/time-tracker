@@ -13,8 +13,10 @@ export default function DashboardPage() {
 
   if (isLoading) {
     return (
-      <div className="flex items-center justify-center h-full">
-        <div className="text-sm" style={{ color: "var(--fg-muted)" }}>Laster...</div>
+      <div className="p-5 md:p-8 max-w-5xl mx-auto space-y-5">
+        <div className="glass-card h-32 skeleton"></div>
+        <div className="glass-card h-24 skeleton"></div>
+        <div className="glass-card h-64 skeleton"></div>
       </div>
     );
   }

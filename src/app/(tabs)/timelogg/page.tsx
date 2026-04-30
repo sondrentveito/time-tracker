@@ -13,8 +13,16 @@ export default function TimeloggPage() {
 
   if (isLoading) {
     return (
-      <div className="flex items-center justify-center h-full">
-        <div className="text-sm" style={{ color: "var(--fg-muted)" }}>Laster...</div>
+      <div className="p-5 md:p-8 max-w-4xl mx-auto space-y-5">
+        <div className="flex items-center justify-between">
+          <div className="w-32 h-8 skeleton rounded-md"></div>
+          <div className="w-36 h-9 skeleton rounded-xl"></div>
+        </div>
+        <div className="space-y-3 mt-8">
+          {[...Array(5)].map((_, i) => (
+            <div key={i} className="glass-card h-16 skeleton"></div>
+          ))}
+        </div>
       </div>
     );
   }

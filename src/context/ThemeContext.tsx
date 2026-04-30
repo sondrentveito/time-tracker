@@ -16,7 +16,8 @@ const THEME_EVENT = "tt-theme-change";
 function readTheme(): Theme {
   if (typeof window === "undefined") return "dark";
   const stored = window.localStorage.getItem(THEME_KEY) as Theme | null;
-  return stored === "light" || stored === "dark" ? stored : "dark";
+  if (stored === "light" || stored === "dark") return stored;
+  return window.matchMedia("(prefers-color-scheme: light)").matches ? "light" : "dark";
 }
 
 function subscribeToTheme(callback: () => void) {
