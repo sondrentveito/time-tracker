@@ -26,7 +26,7 @@ function LoginContent() {
 
         <div>
           <h1 className="text-xl font-semibold" style={{ color: "var(--fg)" }}>
-            tempo
+            horavo
           </h1>
           <p className="text-sm mt-1" style={{ color: "var(--fg-muted)" }}>
             Logg inn for å fortsette

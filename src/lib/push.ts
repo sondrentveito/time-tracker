@@ -38,7 +38,7 @@ function configureWebPush() {
   }
 
   webPush.setVapidDetails(
-    process.env.VAPID_SUBJECT || "mailto:notifications@tempo.local",
+    process.env.VAPID_SUBJECT || "mailto:notifications@horavo.local",
     publicKey,
     privateKey,
   );

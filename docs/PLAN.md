@@ -1,4 +1,4 @@
-# Utviklingsplan — tempo
+# Utviklingsplan — horavo
 
 ## Fase 1: Kjernefunksjonalitet (Ferdig)
 

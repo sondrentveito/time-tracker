@@ -40,12 +40,12 @@ export async function POST(req: NextRequest) {
 
   const subscriptions = await readPushSubscriptions();
   const payload: PushPayload = {
-    title: "Skal tempo logge dagen?",
+    title: "Skal horavo logge dagen?",
     body: "Ingen arbeidsdag er logget ennå. Trykk for å velge starttid.",
     tag: `workday-nudge-${date}`,
     url: "/?nudge=workday",
     actions: [
-      { action: "open", title: "Åpne tempo" },
+      { action: "open", title: "Åpne horavo" },
     ],
   };
 

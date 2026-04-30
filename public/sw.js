@@ -9,10 +9,10 @@ self.addEventListener("push", (event) => {
     }
   }
 
-  const title = data.title || "tempo";
+  const title = data.title || "horavo";
   const options = {
     body: data.body || "Du har en ny påminnelse.",
-    tag: data.tag || "tempo-notification",
+    tag: data.tag || "horavo-notification",
     data: {
       url: data.url || "/",
     },

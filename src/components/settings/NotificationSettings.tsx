@@ -12,7 +12,7 @@ export default function NotificationSettings() {
         <div>
           <h2 className="text-sm font-medium" style={{ color: "var(--fg-muted)" }}>Varsler</h2>
           <p className="mt-2 text-xs leading-relaxed" style={{ color: "var(--fg-faint)" }}>
-            tempo kan minne deg på å logge arbeidsdagen hvis ingen rad finnes etter arbeidsstart. Fungerer best når appen er installert på hjemskjermen.
+            horavo kan minne deg på å logge arbeidsdagen hvis ingen rad finnes etter arbeidsstart. Fungerer best når appen er installert på hjemskjermen.
           </p>
         </div>
         <span

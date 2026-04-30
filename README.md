@@ -1,4 +1,4 @@
-# tempo
+# horavo
 
 En moderne, AI-first app for automatisk og fleksibel tidslogging.
 
