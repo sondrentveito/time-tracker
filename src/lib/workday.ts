@@ -7,6 +7,7 @@ import {
   getExpectedHours,
   getLunchMinutes,
   normalizeWorkRules,
+  nowOslo,
 } from "@/lib/utils";
 import type { LocationType, TimeEntry, WorkRulesConfig } from "@/lib/types";
 import { isValidLocation, isValidTime, sanitizeNote } from "@/lib/security";
@@ -45,7 +46,7 @@ export async function hasEntryForDate(date: string, rules?: WorkRulesConfig): Pr
 
 export async function createWorkdayIfMissing(options: WorkdayOptions = {}) {
   const rules = await getWorkRulesFromConfig();
-  const date = formatDate(new Date());
+  const date = formatDate(nowOslo());
 
   if (await hasEntryForDate(date, rules)) {
     return { ok: true, skipped: true, reason: "Entry already exists for today" };
@@ -54,7 +55,7 @@ export async function createWorkdayIfMissing(options: WorkdayOptions = {}) {
   const start = options.start ?? "08:00";
   if (!isValidTime(start)) throw new Error("Invalid start time");
 
-  const expected = getExpectedHours(new Date(), rules);
+  const expected = getExpectedHours(nowOslo(), rules);
   const end = options.end ?? addMinutesToTime(start, Math.round(expected * 60 + getLunchMinutes(rules)));
   if (!isValidTime(end)) throw new Error("Invalid end time");
 

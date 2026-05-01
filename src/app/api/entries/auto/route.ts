@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { appendSheetRow, readConfigKey, writeConfigKey } from "@/lib/googleSheets";
-import { calculateEntryDuration, formatDate, formatTime } from "@/lib/utils";
+import { calculateEntryDuration, formatDate, formatTime, nowOslo } from "@/lib/utils";
 import { createWorkdayIfMissing, getWorkRulesFromConfig } from "@/lib/workday";
 import { isValidEntryType, isValidLocation, isValidTime, sanitizeNote, verifyApiKey } from "@/lib/security";
 
@@ -58,7 +58,7 @@ export async function POST(req: NextRequest) {
       if (duration <= 0 || duration > 24) {
         return NextResponse.json({ error: "Invalid duration" }, { status: 400 });
       }
-      const date = formatDate(new Date());
+      const date = formatDate(nowOslo());
 
       const timestamp = await appendSheetRow({
         date,
@@ -101,7 +101,7 @@ export async function POST(req: NextRequest) {
         return NextResponse.json({ error: "Invalid location" }, { status: 400 });
       }
 
-      const now = new Date();
+      const now = nowOslo();
       const time = normalizeTime(body.time) || formatTime(now);
       if (!isValidTime(time)) {
         return NextResponse.json({ error: "Invalid time" }, { status: 400 });
@@ -127,7 +127,7 @@ export async function POST(req: NextRequest) {
         return NextResponse.json({ error: "Corrupt arrival state" }, { status: 400 });
       }
 
-      const now = new Date();
+      const now = nowOslo();
       const departTime = normalizeTime(body.time) || formatTime(now);
       if (!isValidTime(departTime)) {
         return NextResponse.json({ error: "Invalid time" }, { status: 400 });

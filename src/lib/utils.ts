@@ -1,5 +1,14 @@
 import type { EntryType, TimeEntry, WorkRulesConfig } from "./types";
 
+const TIMEZONE = "Europe/Oslo";
+
+/** Return current date/time adjusted to Europe/Oslo timezone. */
+export function nowOslo(): Date {
+  const now = new Date();
+  const oslo = new Date(now.toLocaleString("en-US", { timeZone: TIMEZONE }));
+  return oslo;
+}
+
 // ─── Date Parsing ───
 
 /** Parse "dd.mm.yyyy" to Date object. Returns null for invalid input. */
