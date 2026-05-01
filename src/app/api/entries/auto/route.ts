@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
-import { appendSheetRow } from "@/lib/googleSheets";
-import { calculateEntryDuration, formatDate } from "@/lib/utils";
+import { appendSheetRow, readConfigKey, writeConfigKey } from "@/lib/googleSheets";
+import { calculateEntryDuration, formatDate, formatTime } from "@/lib/utils";
 import { createWorkdayIfMissing, getWorkRulesFromConfig } from "@/lib/workday";
 import { isValidEntryType, isValidLocation, isValidTime, sanitizeNote, verifyApiKey } from "@/lib/security";
 
@@ -77,7 +77,70 @@ export async function POST(req: NextRequest) {
       return NextResponse.json(result);
     }
 
-    // TODO: Implement "arrive"/"depart" actions with state tracking
+    if (action === "arrive") {
+      const location = body.location || "office";
+      if (!isValidLocation(location)) {
+        return NextResponse.json({ error: "Invalid location" }, { status: 400 });
+      }
+
+      const now = new Date();
+      const time = body.time || formatTime(now);
+      if (!isValidTime(time)) {
+        return NextResponse.json({ error: "Invalid time" }, { status: 400 });
+      }
+
+      const state = { time, location, date: formatDate(now) };
+      await writeConfigKey("arrive-state", JSON.stringify(state));
+
+      return NextResponse.json({ ok: true, arrived: time, location });
+    }
+
+    if (action === "depart") {
+      const raw = await readConfigKey("arrive-state");
+      if (!raw) {
+        return NextResponse.json({ error: "No active arrival found" }, { status: 400 });
+      }
+
+      let state: { time: string; location: string; date: string };
+      try {
+        state = JSON.parse(raw);
+      } catch {
+        return NextResponse.json({ error: "Corrupt arrival state" }, { status: 400 });
+      }
+
+      const now = new Date();
+      const departTime = body.time || formatTime(now);
+      if (!isValidTime(departTime)) {
+        return NextResponse.json({ error: "Invalid time" }, { status: 400 });
+      }
+
+      const location = (body.location || state.location || "office") as string;
+      if (!isValidLocation(location)) {
+        return NextResponse.json({ error: "Invalid location" }, { status: 400 });
+      }
+
+      const duration = calculateEntryDuration(state.time, departTime, "work", rules);
+      if (duration <= 0 || duration > 24) {
+        return NextResponse.json({ error: "Invalid duration" }, { status: 400 });
+      }
+
+      const timestamp = await appendSheetRow({
+        date: state.date,
+        start: state.time,
+        end: departTime,
+        duration,
+        type: "work",
+        location,
+        note: sanitizeNote(body.note || "Auto: arrive/depart"),
+        auto: true,
+      });
+
+      // Clear arrival state
+      await writeConfigKey("arrive-state", "");
+
+      return NextResponse.json({ ok: true, timestamp, start: state.time, end: departTime, duration });
+    }
+
     // TODO: Implement "parse" action with AI text parsing
 
     return NextResponse.json({ error: `Unknown action: ${action}` }, { status: 400 });

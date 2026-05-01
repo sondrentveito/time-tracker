@@ -21,7 +21,9 @@ export function formatDate(date: Date): string {
 
 /** Format Date to "HH:mm" */
 export function formatTime(date: Date): string {
-  return date.toLocaleTimeString("nb-NO", { hour: "2-digit", minute: "2-digit" });
+  const h = date.getHours().toString().padStart(2, "0");
+  const m = date.getMinutes().toString().padStart(2, "0");
+  return `${h}:${m}`;
 }
 
 /** Format decimal hours to "Xt Ym" (e.g. 7.5 -> "7t 30m") */

@@ -61,7 +61,8 @@ export type ConfigKey =
   | "flex-balance"
   | "seen-locations"
   | "push-subscriptions"
-  | "push-nudge-state";
+  | "push-nudge-state"
+  | "arrive-state";
 
 // ─── Entry type display helpers ───
 
