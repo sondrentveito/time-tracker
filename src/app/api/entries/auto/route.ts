@@ -4,6 +4,24 @@ import { calculateEntryDuration, formatDate, formatTime } from "@/lib/utils";
 import { createWorkdayIfMissing, getWorkRulesFromConfig } from "@/lib/workday";
 import { isValidEntryType, isValidLocation, isValidTime, sanitizeNote, verifyApiKey } from "@/lib/security";
 
+/** Normalize time: "08.30" → "08:30", "8:30" → "08:30" */
+function normalizeTime(value: unknown): string | undefined {
+  if (typeof value !== "string") return undefined;
+  const normalized = value.replace(/\./g, ":").trim();
+  const match = normalized.match(/^(\d{1,2}):(\d{2})$/);
+  if (!match) return undefined;
+  return match[1].padStart(2, "0") + ":" + match[2];
+}
+
+/** Normalize date: "01.05.2026" stays, handles any separator */
+function normalizeDate(value: unknown): string | undefined {
+  if (typeof value !== "string") return undefined;
+  const normalized = value.replace(/[\/\-]/g, ".").trim();
+  const match = normalized.match(/^(\d{2})\.(\d{2})\.(\d{4})$/);
+  if (!match) return undefined;
+  return `${match[1]}.${match[2]}.${match[3]}`;
+}
+
 /** Auto-log endpoint for iOS Shortcuts / external triggers.
  *  Authenticated via API key (x-api-key header).
  *
@@ -84,12 +102,13 @@ export async function POST(req: NextRequest) {
       }
 
       const now = new Date();
-      const time = body.time || formatTime(now);
+      const time = normalizeTime(body.time) || formatTime(now);
       if (!isValidTime(time)) {
         return NextResponse.json({ error: "Invalid time" }, { status: 400 });
       }
 
-      const state = { time, location, date: formatDate(now) };
+      const date = normalizeDate(body.date) || formatDate(now);
+      const state = { time, location, date };
       await writeConfigKey("arrive-state", JSON.stringify(state));
 
       return NextResponse.json({ ok: true, arrived: time, location });
@@ -109,7 +128,7 @@ export async function POST(req: NextRequest) {
       }
 
       const now = new Date();
-      const departTime = body.time || formatTime(now);
+      const departTime = normalizeTime(body.time) || formatTime(now);
       if (!isValidTime(departTime)) {
         return NextResponse.json({ error: "Invalid time" }, { status: 400 });
       }
