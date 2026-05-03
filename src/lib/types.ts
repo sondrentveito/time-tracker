@@ -62,7 +62,9 @@ export type ConfigKey =
   | "seen-locations"
   | "push-subscriptions"
   | "push-nudge-state"
-  | "arrive-state";
+  | "arrive-state"
+  | `arrive-state:${string}`
+  | `idem:${string}`;
 
 // ─── Entry type display helpers ───
 

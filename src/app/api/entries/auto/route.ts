@@ -3,8 +3,13 @@ import { appendSheetRow, readConfigKey, writeConfigKey } from "@/lib/googleSheet
 import { calculateEntryDuration, formatDate, formatTime, nowOslo } from "@/lib/utils";
 import { createWorkdayIfMissing, getWorkRulesFromConfig } from "@/lib/workday";
 import { isValidEntryType, isValidLocation, isValidTime, sanitizeNote, verifyApiKey } from "@/lib/security";
+import { resolveLocation } from "@/lib/geo";
+import {
+  getCachedIdempotentResult,
+  normalizeIdempotencyKey,
+  storeIdempotentResult,
+} from "@/lib/idempotency";
 
-/** Normalize time: "08.30" → "08:30", "8:30" → "08:30" */
 function normalizeTime(value: unknown): string | undefined {
   if (typeof value !== "string") return undefined;
   const normalized = value.replace(/\./g, ":").trim();
@@ -13,7 +18,6 @@ function normalizeTime(value: unknown): string | undefined {
   return match[1].padStart(2, "0") + ":" + match[2];
 }
 
-/** Normalize date: "01.05.2026" stays, handles any separator */
 function normalizeDate(value: unknown): string | undefined {
   if (typeof value !== "string") return undefined;
   const normalized = value.replace(/[\/\-]/g, ".").trim();
@@ -22,35 +26,103 @@ function normalizeDate(value: unknown): string | undefined {
   return `${match[1]}.${match[2]}.${match[3]}`;
 }
 
+const DEVICE_ID_PATTERN = /^[A-Za-z0-9_\-]{1,32}$/;
+
+function normalizeDeviceId(value: unknown): string {
+  if (typeof value !== "string") return "default";
+  const trimmed = value.trim();
+  if (!trimmed || !DEVICE_ID_PATTERN.test(trimmed)) return "default";
+  return trimmed;
+}
+
+function arriveStateKey(deviceId: string): `arrive-state:${string}` {
+  return `arrive-state:${deviceId}`;
+}
+
+async function readArriveState(
+  deviceId: string,
+): Promise<string | null> {
+  const scoped = await readConfigKey(arriveStateKey(deviceId));
+  if (scoped) return scoped;
+  // Backwards compatibility: fall back to the legacy global slot when the device key is empty.
+  if (deviceId === "default") {
+    return readConfigKey("arrive-state");
+  }
+  return null;
+}
+
+async function clearArriveState(deviceId: string): Promise<void> {
+  await writeConfigKey(arriveStateKey(deviceId), "");
+  if (deviceId === "default") {
+    await writeConfigKey("arrive-state", "");
+  }
+}
+
 /** Auto-log endpoint for iOS Shortcuts / external triggers.
  *  Authenticated via API key (x-api-key header).
  *
+ *  Common headers:
+ *  - x-api-key: required
+ *  - Idempotency-Key: optional, dedupes identical requests for 5 minutes
+ *
+ *  Common body fields:
+ *  - deviceId?: string — namespaces arrive/depart state per device (default: "default")
+ *  - lat, lon?: number — when present, server resolves location from configured geofences
+ *
  *  Accepts:
- *  - { action: "arrive", location: "office", time?: "HH:mm" }
- *  - { action: "depart", location: "office", time?: "HH:mm" }
- *  - { action: "log", start: "HH:mm", end: "HH:mm", type?: string, location?: string, note?: string }
- *  - { action: "workday", start?: "HH:mm", end?: "HH:mm", location?: string, note?: string }
- *  - { action: "parse", text: "Jobbet 8-16 hjemmefra" } (AI-powered)
+ *  - { action: "arrive", location?: "office", time?: "HH:mm", lat?, lon? }
+ *  - { action: "depart", location?: "office", time?: "HH:mm", lat?, lon? }
+ *  - { action: "log", start: "HH:mm", end: "HH:mm", type?, location?, note?, lat?, lon? }
+ *  - { action: "workday", start?, end?, location?, note? }
+ *  - { action: "parse", text } (TODO)
  */
 export async function POST(req: NextRequest) {
   if (!verifyApiKey(req.headers)) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
+  let body: Record<string, unknown>;
   try {
-    const body = await req.json();
+    body = (await req.json()) as Record<string, unknown>;
+  } catch {
+    return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 });
+  }
+
+  const idempotencyKey = normalizeIdempotencyKey(
+    req.headers.get("idempotency-key") ?? body.idempotencyKey,
+  );
+  if (idempotencyKey) {
+    const cached = await getCachedIdempotentResult<unknown>(idempotencyKey);
+    if (cached) {
+      return NextResponse.json({ ...cached as object, idempotent: true });
+    }
+  }
+
+  try {
     const { action } = body;
     const rules = await getWorkRulesFromConfig();
+    const deviceId = normalizeDeviceId(body.deviceId);
 
     if (action === "log") {
-      const { start, end, type = "work", location = "office", note = "" } = body;
+      const start = body.start as unknown;
+      const end = body.end as unknown;
+      const type = (body.type as string) ?? "work";
+      const explicitLocation = body.location as unknown;
+      const note = (body.note as string) ?? "";
+
       if (!isValidTime(start) || !isValidTime(end)) {
         return NextResponse.json({ error: "Invalid start/end" }, { status: 400 });
       }
       if (!isValidEntryType(type)) {
         return NextResponse.json({ error: "Invalid type" }, { status: 400 });
       }
-      if (!isValidLocation(location)) {
+
+      const resolved = await resolveLocation({
+        lat: body.lat,
+        lon: body.lon,
+        fallback: isValidLocation(explicitLocation) ? explicitLocation : undefined,
+      });
+      if (!isValidLocation(resolved.location)) {
         return NextResponse.json({ error: "Invalid location" }, { status: 400 });
       }
 
@@ -66,12 +138,21 @@ export async function POST(req: NextRequest) {
         end,
         duration,
         type,
-        location,
+        location: resolved.location,
         note: sanitizeNote(note),
         auto: true,
       });
 
-      return NextResponse.json({ ok: true, timestamp, duration });
+      const result = {
+        ok: true,
+        timestamp,
+        duration,
+        location: resolved.location,
+        locationSource: resolved.source,
+        matchedRule: resolved.matchedRule,
+      };
+      if (idempotencyKey) await storeIdempotentResult(idempotencyKey, result);
+      return NextResponse.json(result);
     }
 
     if (action === "workday") {
@@ -86,20 +167,23 @@ export async function POST(req: NextRequest) {
       }
 
       const result = await createWorkdayIfMissing({
-        start: body.start,
-        end: body.end,
-        location: body.location,
+        start: body.start as string | undefined,
+        end: body.end as string | undefined,
+        location: body.location as ("office" | "home" | "other") | undefined,
         note: sanitizeNote(body.note),
         auto: true,
       });
+      if (idempotencyKey) await storeIdempotentResult(idempotencyKey, result);
       return NextResponse.json(result);
     }
 
     if (action === "arrive") {
-      const location = body.location || "office";
-      if (!isValidLocation(location)) {
-        return NextResponse.json({ error: "Invalid location" }, { status: 400 });
-      }
+      const explicitLocation = body.location as unknown;
+      const resolved = await resolveLocation({
+        lat: body.lat,
+        lon: body.lon,
+        fallback: isValidLocation(explicitLocation) ? explicitLocation : undefined,
+      });
 
       const now = nowOslo();
       const time = normalizeTime(body.time) || formatTime(now);
@@ -108,16 +192,28 @@ export async function POST(req: NextRequest) {
       }
 
       const date = normalizeDate(body.date) || formatDate(now);
-      const state = { time, location, date };
-      await writeConfigKey("arrive-state", JSON.stringify(state));
+      const state = { time, location: resolved.location, date };
+      await writeConfigKey(arriveStateKey(deviceId), JSON.stringify(state));
 
-      return NextResponse.json({ ok: true, arrived: time, location });
+      const result = {
+        ok: true,
+        arrived: time,
+        location: resolved.location,
+        locationSource: resolved.source,
+        matchedRule: resolved.matchedRule,
+        deviceId,
+      };
+      if (idempotencyKey) await storeIdempotentResult(idempotencyKey, result);
+      return NextResponse.json(result);
     }
 
     if (action === "depart") {
-      const raw = await readConfigKey("arrive-state");
+      const raw = await readArriveState(deviceId);
       if (!raw) {
-        return NextResponse.json({ error: "No active arrival found" }, { status: 400 });
+        return NextResponse.json(
+          { error: "No active arrival found", deviceId },
+          { status: 400 },
+        );
       }
 
       let state: { time: string; location: string; date: string };
@@ -133,8 +229,18 @@ export async function POST(req: NextRequest) {
         return NextResponse.json({ error: "Invalid time" }, { status: 400 });
       }
 
-      const location = (body.location || state.location || "office") as string;
-      if (!isValidLocation(location)) {
+      const explicitLocation = body.location as unknown;
+      const fallback = isValidLocation(explicitLocation)
+        ? explicitLocation
+        : isValidLocation(state.location)
+          ? (state.location as "office" | "home" | "other")
+          : undefined;
+      const resolved = await resolveLocation({
+        lat: body.lat,
+        lon: body.lon,
+        fallback,
+      });
+      if (!isValidLocation(resolved.location)) {
         return NextResponse.json({ error: "Invalid location" }, { status: 400 });
       }
 
@@ -149,15 +255,26 @@ export async function POST(req: NextRequest) {
         end: departTime,
         duration,
         type: "work",
-        location,
+        location: resolved.location,
         note: sanitizeNote(body.note || "Auto: arrive/depart"),
         auto: true,
       });
 
-      // Clear arrival state
-      await writeConfigKey("arrive-state", "");
+      await clearArriveState(deviceId);
 
-      return NextResponse.json({ ok: true, timestamp, start: state.time, end: departTime, duration });
+      const result = {
+        ok: true,
+        timestamp,
+        start: state.time,
+        end: departTime,
+        duration,
+        location: resolved.location,
+        locationSource: resolved.source,
+        matchedRule: resolved.matchedRule,
+        deviceId,
+      };
+      if (idempotencyKey) await storeIdempotentResult(idempotencyKey, result);
+      return NextResponse.json(result);
     }
 
     // TODO: Implement "parse" action with AI text parsing
